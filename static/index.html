@@ -37,6 +37,9 @@ function createUI() {
 }
 createUI();
 
+socket.on("connect", () => console.log("WS connected"));
+socket.on("log", msg => console.log("Rcv:", msg));
+
 socket.on("log", msg => {
     let pre = document.getElementById(`log_${msg.device}`);
     pre.textContent += msg.text;
