@@ -20,6 +20,8 @@ connected_clients = set()
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
 
+ws_loop = None
+
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
@@ -38,18 +40,20 @@ def read_serial(portinfo):
     ser = serial.Serial(path, baud, timeout=0.1)
     serial_objects[name] = ser
 
-    with open(logfile, "a") as f:
-        while True:
-            line = ser.readline().decode(errors="ignore")
-            if line:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                text = f"[{timestamp}] {line}"
+    while True:
+        line = ser.readline().decode(errors="ignore")
+        if line:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            text = f"[{timestamp}] {line}"
 
+            with open(logfile, "a") as f:
                 f.write(text)
                 f.flush()
 
-                msg = json.dumps({"device": name, "text": text})
-                asyncio.run(send_to_all(msg))
+            msg = json.dumps({"device": name, "text": text})
+
+            if ws_loop is not None:
+                ws_loop.call_soon_threadsafe(asyncio.create_task, send_to_all(msg))
 
 
 async def ws_handler(websocket, path):
@@ -87,7 +91,9 @@ def start_websocket():
             print("WebSocket server running on ws://0.0.0.0:8765")
             await asyncio.Future()  # run forever
 
+    global ws_loop
     loop = asyncio.new_event_loop()
+    ws_loop = loop 
     asyncio.set_event_loop(loop)
     loop.run_until_complete(ws_main())
     loop.run_forever()
