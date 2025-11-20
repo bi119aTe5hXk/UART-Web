@@ -3,7 +3,6 @@
 <head>
     <meta charset="utf-8">
     <title>UART Monitor</title>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <style>
         body { font-family: monospace; background: #111; color: #eee; }
@@ -19,7 +18,8 @@
 
 <script>
 const DEVICES = ["device1", "device2"];
-const socket = io();
+
+let ws = new WebSocket("ws://" + location.hostname + ":8765");
 
 function createUI() {
     let container = document.getElementById("containers");
@@ -37,18 +37,27 @@ function createUI() {
 }
 createUI();
 
-socket.on("connect", () => console.log("WS connected"));
-socket.on("log", msg => console.log("Rcv:", msg));
+ws.onopen = () => console.log("WS connected");
 
-socket.on("log", msg => {
+ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data); 
     let pre = document.getElementById(`log_${msg.device}`);
-    pre.textContent += msg.text;
-    pre.scrollTop = pre.scrollHeight;
-});
+    if (pre) {
+        pre.textContent += msg.text;
+        pre.scrollTop = pre.scrollHeight;
+    }
+};
 
 function sendCmd(device) {
     let input = document.getElementById("input_" + device);
-    socket.emit("send", {device: device, cmd: input.value});
+    let cmd = input.value;
+
+    let msg = {
+        device: device,
+        cmd: cmd
+    };
+
+    ws.send(JSON.stringify(msg));
     input.value = "";
 }
 </script>
