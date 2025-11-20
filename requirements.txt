@@ -1,4 +1,3 @@
-flask
-flask-socketio
+Flask
 pyserial
-eventlet
+websockets
