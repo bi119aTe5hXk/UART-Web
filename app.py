@@ -9,8 +9,9 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 PORTS = [
-    {"name": "device1", "path": "/dev/ttyUSB0", "baud": 115200},
-    {"name": "device2", "path": "/dev/ttyUSB1", "baud": 115200},
+    {"name": "device0", "path": "/dev/ttyUSB0", "baud": 115200},
+    {"name": "device1", "path": "/dev/ttyUSB1", "baud": 115200},
+    {"name": "device2", "path": "/dev/ttyUSB2", "baud": 115200},
 ]
 
 LOG_DIR = "logs"
