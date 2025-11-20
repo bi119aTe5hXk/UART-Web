@@ -82,10 +82,14 @@ async def send_to_all(msg):
 
 
 def start_websocket():
+    async def ws_main():
+        async with websockets.serve(ws_handler, "0.0.0.0", 8765):
+            print("WebSocket server running on ws://0.0.0.0:8765")
+            await asyncio.Future()  # run forever
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    server = websockets.serve(ws_handler, "0.0.0.0", 8765)
-    loop.run_until_complete(server)
+    loop.run_until_complete(ws_main())
     loop.run_forever()
 
 
