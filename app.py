@@ -2,7 +2,6 @@ import os
 import json
 import asyncio
 import serial
-import threading
 from datetime import datetime
 from flask import Flask, send_from_directory
 import websockets
@@ -15,12 +14,10 @@ PORTS = [
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
-serial_objects = {} 
-connected_clients = set() 
+serial_objects = {}
+connected_clients = set()
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
-
-ws_loop = None
 
 @app.route("/")
 def index():
@@ -30,30 +27,29 @@ def index():
 def download_log(filename):
     return send_from_directory(LOG_DIR, filename, as_attachment=True)
 
-def read_serial(portinfo):
+
+async def read_serial(portinfo):
     name = portinfo["name"]
     path = portinfo["path"]
     baud = portinfo["baud"]
-
     logfile = os.path.join(LOG_DIR, f"{name}.log")
 
     ser = serial.Serial(path, baud, timeout=0.1)
     serial_objects[name] = ser
 
+    def readline():
+        return ser.readline().decode(errors="ignore")
+
     while True:
-        line = ser.readline().decode(errors="ignore")
+        line = await asyncio.to_thread(readline)
         if line:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             text = f"[{timestamp}] {line}"
-
             with open(logfile, "a") as f:
                 f.write(text)
                 f.flush()
-
             msg = json.dumps({"device": name, "text": text})
-
-            if ws_loop is not None:
-                ws_loop.call_soon_threadsafe(asyncio.create_task, send_to_all(msg))
+            await send_to_all(msg)
 
 
 async def ws_handler(websocket, path):
@@ -65,7 +61,6 @@ async def ws_handler(websocket, path):
             data = json.loads(message)
             device = data["device"]
             cmd = data["cmd"]
-
             if device in serial_objects:
                 serial_objects[device].write((cmd + "\r\n").encode())
                 serial_objects[device].flush()
@@ -85,24 +80,17 @@ async def send_to_all(msg):
         connected_clients.remove(ws)
 
 
-def start_websocket():
-    async def ws_main():
-        async with websockets.serve(ws_handler, "0.0.0.0", 8765):
-            print("WebSocket server running on ws://0.0.0.0:8765")
-            await asyncio.Future()  # run forever
+async def main():
+    tasks = [asyncio.create_task(read_serial(p)) for p in PORTS]
 
-    global ws_loop
-    loop = asyncio.new_event_loop()
-    ws_loop = loop 
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(ws_main())
-    loop.run_forever()
+    ws_server = websockets.serve(ws_handler, "0.0.0.0", 8765)
+    await ws_server
+
+    from threading import Thread
+    Thread(target=lambda: app.run(host="0.0.0.0", port=8080), daemon=True).start()
+
+    await asyncio.gather(*tasks)
 
 
 if __name__ == "__main__":
-    for p in PORTS:
-        threading.Thread(target=read_serial, args=(p,), daemon=True).start()
-
-    threading.Thread(target=start_websocket, daemon=True).start()
-
-    app.run(host="0.0.0.0", port=8080)
+    asyncio.run(main())
