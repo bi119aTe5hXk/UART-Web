@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <title>UART Monitor</title>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ansi_up@5.0.0/ansi_up.js"></script>
+
 <style>
 body { font-family: monospace; background: #111; color: #eee; }
 .device { border: 1px solid #444; padding: 10px; margin-bottom: 20px; }
@@ -20,6 +22,7 @@ button { margin-left: 5px; }
 <script>
 const DEVICES = ["device1", "device2"];
 const socket = io();
+const ansi_up = new AnsiUp();
 
 function createUI() {
     const container = document.getElementById("containers");
@@ -40,7 +43,8 @@ createUI();
 socket.on("log", msg => {
     const pre = document.getElementById("log_" + msg.device);
     if(pre){
-        pre.textContent += msg.text;
+        const html = ansi_up.ansi_to_html(msg.text);
+        pre.innerHTML += html;
         pre.scrollTop = pre.scrollHeight;
     }
 });
