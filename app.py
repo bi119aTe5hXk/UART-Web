@@ -5,6 +5,7 @@ import serial
 from datetime import datetime
 from flask import Flask, send_from_directory
 import websockets
+from threading import Thread
 
 PORTS = [
     {"name": "device1", "path": "/dev/ttyUSB0", "baud": 115200},
@@ -14,7 +15,7 @@ PORTS = [
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
-serial_objects = {}
+serial_objects = {}     
 connected_clients = set()
 
 app = Flask(__name__, static_url_path="/static", static_folder="static")
@@ -57,13 +58,14 @@ async def ws_handler(websocket, path):
     connected_clients.add(websocket)
     try:
         async for message in websocket:
-            print("WS received:", message)
             data = json.loads(message)
-            device = data["device"]
-            cmd = data["cmd"]
-            if device in serial_objects:
+            device = data.get("device")
+            cmd = data.get("cmd")
+            if device in serial_objects and cmd:
                 serial_objects[device].write((cmd + "\r\n").encode())
                 serial_objects[device].flush()
+    except websockets.exceptions.ConnectionClosed:
+        pass
     finally:
         connected_clients.remove(websocket)
         print("WebSocket client disconnected")
@@ -80,14 +82,17 @@ async def send_to_all(msg):
         connected_clients.remove(ws)
 
 
+def start_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+
 async def main():
     tasks = [asyncio.create_task(read_serial(p)) for p in PORTS]
 
-    ws_server = websockets.serve(ws_handler, "0.0.0.0", 8765)
-    await ws_server
+    ws_server = await websockets.serve(ws_handler, "0.0.0.0", 8765)
+    print("WebSocket server running on ws://0.0.0.0:8765")
 
-    from threading import Thread
-    Thread(target=lambda: app.run(host="0.0.0.0", port=8080), daemon=True).start()
+    Thread(target=start_flask, daemon=True).start()
 
     await asyncio.gather(*tasks)
 
