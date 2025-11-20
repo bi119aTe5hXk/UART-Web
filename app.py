@@ -5,6 +5,8 @@ import threading
 from datetime import datetime
 from flask import Flask, send_from_directory, request
 from flask_socketio import SocketIO
+import logging
+from logging.handlers import RotatingFileHandler
 
 PORTS = [
     {"name": "device1", "path": "/dev/ttyUSB0", "baud": 115200},
@@ -18,26 +20,37 @@ app = Flask(__name__, static_url_path="/static", static_folder="static")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 serial_objects = {}
+loggers = {} 
+
+def get_logger(device_name):
+    logfile = os.path.join(LOG_DIR, f"{device_name}.log")
+    handler = RotatingFileHandler(logfile, maxBytes=100*1024*1024, backupCount=3)
+    formatter = logging.Formatter("[%(asctime)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(device_name)
+    logger.setLevel(logging.INFO)
+    if not logger.handlers:
+        logger.addHandler(handler)
+    return logger
+
+for p in PORTS:
+    loggers[p["name"]] = get_logger(p["name"])
 
 def read_serial(portinfo):
     name = portinfo["name"]
     path = portinfo["path"]
     baud = portinfo["baud"]
-    logfile = os.path.join(LOG_DIR, f"{name}.log")
 
     ser = serial.Serial(path, baud, timeout=0.1)
     serial_objects[name] = ser
+    logger = loggers[name]
 
-    with open(logfile, "a") as f:
-        while True:
-            line = ser.readline().decode(errors="ignore")
-            if line:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                text = f"[{timestamp}] {line}"
-                f.write(text)
-                f.flush()
-
-                socketio.emit("log", {"device": name, "text": text})
+    while True:
+        line = ser.readline().decode(errors="ignore")
+        if line:
+            text = line.strip()
+            logger.info(text)
+            socketio.emit("log", {"device": name, "text": f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {text}\n"})
 
 @app.route("/")
 def index():
