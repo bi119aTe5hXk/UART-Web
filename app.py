@@ -151,4 +151,4 @@ if __name__ == "__main__":
     for p in PORTS:
         threading.Thread(target=read_serial, args=(p,), daemon=True).start()
 
-    socketio.run(app, host="0.0.0.0", port=8080, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=80, allow_unsafe_werkzeug=True)
