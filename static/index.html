@@ -20,12 +20,16 @@ button { margin-left: 5px; }
 <div id="containers"></div>
 
 <script>
-const DEVICES = ["device0","device1", "device2"];
 const socket = io();
 const ansi_up = new AnsiUp();
 
-function createUI() {
+async function loadDevices() {
+    const resp = await fetch("/devices");
+    const DEVICES = await resp.json();
+
     const container = document.getElementById("containers");
+    container.innerHTML = "";
+
     DEVICES.forEach(dev => {
         container.innerHTML += `
             <div class="device">
@@ -37,8 +41,10 @@ function createUI() {
             </div>
         `;
     });
+
+    console.log("Loaded devices:", DEVICES);
 }
-createUI();
+loadDevices();
 
 socket.on("log", msg => {
     const pre = document.getElementById("log_" + msg.device);
