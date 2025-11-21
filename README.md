@@ -23,7 +23,7 @@ pip3 install -r requirements.txt --break-system-packages
 python3 app.py
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+Then open [http://localhost](http://localhost).
 
 # Run on startup
 ```
