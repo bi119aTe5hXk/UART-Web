@@ -17,6 +17,10 @@ or just
 sudo apt install python3 python3-pip
 pip3 install -r requirements.txt --break-system-packages
 ```
+Fix Permission denied for /dev/ttyUSB* :
+```
+sudo usermod -a -G dialout pi
+```
 
 # Useage
 ```
@@ -36,10 +40,11 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
+User=root
+Group=root
 WorkingDirectory=/home/pi/UART-Web
 ExecStart=/home/pi/UART-Web/.venv/bin/python /home/pi/UART-Web/app.py
-Restart=on-failure
+Restart=always
 
 [Install]
 WantedBy=multi-user.target

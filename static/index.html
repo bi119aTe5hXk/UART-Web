@@ -24,7 +24,7 @@ const socket = io();
 const ansi_up = new AnsiUp();
 
 async function loadDevices() {
-    const resp = await fetch("/devices");
+    const resp = await fetch("/api/devices");
     const DEVICES = await resp.json();
 
     const container = document.getElementById("containers");
